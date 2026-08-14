@@ -3,6 +3,7 @@ import java.sql.*;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import jakarta.servlet.annotation.WebServlet;
+import utils.DBConnection;
 
 @WebServlet("/resetpassword")
 public class ResetPasswordServlet extends HttpServlet {

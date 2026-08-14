@@ -96,6 +96,49 @@ input{
     color:#7dd3fc;
     text-decoration:none;
 }
+.phoneRow{
+    display:flex;
+    gap:10px;
+    align-items:center;
+}
+.phoneRow input{
+    flex:1;
+}
+.removePhone{
+    width:46px;
+    height:50px;
+    border:none;
+    border-radius:14px;
+    background:linear-gradient(135deg,#ff416c,#ff4b2b);
+    color:white;
+    font-size:22px;
+    font-weight:bold;
+    cursor:pointer;
+    flex-shrink:0;
+    transition:all .3s ease;
+}
+.removePhone:hover{
+    transform:scale(1.08);
+    box-shadow:0 0 18px rgba(255,75,43,.5);
+}
+.addPhone{
+    width:100%;
+    margin-top:10px;
+    padding:12px;
+    border:2px dashed rgba(255,255,255,0.25);
+    border-radius:14px;
+    background:transparent;
+    color:#7dd3fc;
+    font-size:15px;
+    font-weight:bold;
+    cursor:pointer;
+    transition:all .3s ease;
+}
+.addPhone:hover{
+    background:rgba(255,255,255,0.06);
+    border-color:#7dd3fc;
+    color:white;
+}
 </style>
 
 <script>
@@ -350,15 +393,16 @@ function checkConfirmPassword(){
     return false;
 
 }
-function validatePhone(){
+function validatePhone(el){
 
-    let phone=document.getElementById("phone").value.trim();
+    let phone=el.value.trim();
 
-    let msg=document.getElementById("phoneMsg");
+    let msg=el.closest(".phoneRow").nextElementSibling;
 
     if(phone.length==0){
 
         msg.innerHTML="";
+        checkForm();
         return false;
 
     }
@@ -367,6 +411,7 @@ function validatePhone(){
 
         msg.innerHTML="Only numbers are allowed";
         msg.style.color="red";
+        checkForm();
         return false;
 
     }
@@ -375,6 +420,7 @@ function validatePhone(){
 
         msg.innerHTML="Phone number must contain 10 digits";
         msg.style.color="red";
+        checkForm();
         return false;
 
     }
@@ -383,6 +429,7 @@ function validatePhone(){
 
         msg.innerHTML="Phone number Invalid";
         msg.style.color="red";
+        checkForm();
         return false;
 
     }
@@ -390,7 +437,93 @@ function validatePhone(){
     msg.innerHTML="Valid Phone Number";
     msg.style.color="#00ff66";
 
+    checkForm();
+
     return true;
+}
+function validateAllPhones(){
+
+    let inputs=document.querySelectorAll("input.phoneInput");
+
+    let filled=0;
+    let invalid=0;
+
+    for(let i=0;i<inputs.length;i++){
+
+        let v=inputs[i].value.trim();
+
+        if(v.length==0) continue;
+
+        filled++;
+
+        if(/^[6-9][0-9]{9}$/.test(v)){
+
+            inputs[i].closest(".phoneRow").nextElementSibling.innerHTML="Valid Phone Number";
+
+            inputs[i].closest(".phoneRow").nextElementSibling.style.color="#00ff66";
+
+        }else{
+
+            invalid++;
+
+        }
+
+    }
+
+    if(filled<1) return false;
+
+    return invalid==0;
+
+}
+function addPhone(){
+
+    let wrap=document.getElementById("phoneList");
+
+    let row=document.createElement("div");
+
+    row.className="phoneRow";
+
+    row.style.marginTop="10px";
+
+    row.innerHTML=
+
+        '<input type="tel" name="altphone" class="phoneInput" maxlength="10" '+
+
+        'placeholder="Alternate phone" '+
+
+        'onkeypress="return event.charCode>=48 && event.charCode<=57" '+
+
+        'onkeyup="validatePhone(this)">'+
+
+        '<button type="button" class="removePhone" onclick="removePhone(this)">-</button>';
+
+    let msg=document.createElement("div");
+
+    msg.className="phoneMsg";
+
+    msg.style.cssText="margin-top:5px;font-size:14px;font-weight:bold;";
+
+    wrap.appendChild(row);
+
+    wrap.appendChild(msg);
+
+    row.scrollIntoView({behavior:"smooth",block:"center"});
+
+    row.querySelector("input").focus();
+
+}
+function removePhone(btn){
+
+    let row=btn.closest(".phoneRow");
+
+    let msg=row.nextElementSibling;
+
+    row.remove();
+
+    if(msg && msg.classList.contains("phoneMsg")) msg.remove();
+
+    checkForm();
+
 }
 function validateEmail(){
 
@@ -429,7 +562,7 @@ function checkForm(){
     validateUsername() &&
     checkPassword() &&
     checkConfirmPassword() &&
-    validatePhone() &&
+    validateAllPhones() &&
     validateEmail();
 
     document.getElementById("registerBtn").disabled=!ok;
@@ -542,14 +675,18 @@ font-weight:bold;">
 
 <label>Phone Number <span class="required">*</span></label>
 
-<input
-type="tel"
-id="phone"
-name="phone"
-maxlength="10"
-onkeypress="return event.charCode>=48 && event.charCode<=57"
-onkeyup="validatePhone()"
-required>
+<div id="phoneList">
+<div class="phoneRow">
+    <input
+    type="tel"
+    id="phone"
+    name="phone"
+    class="phoneInput"
+    maxlength="10"
+    onkeypress="return event.charCode>=48 && event.charCode<=57"
+    onkeyup="validatePhone(this)"
+    required>
+</div>
 
 <div id="phoneMsg"
 style="
@@ -557,6 +694,9 @@ margin-top:8px;
 font-size:15px;
 font-weight:bold;">
 </div>
+</div>
+
+<button type="button" class="addPhone" onclick="addPhone()">+ Add Another Phone</button>
 
 <label>Email <span class="required">*</span></label>
 

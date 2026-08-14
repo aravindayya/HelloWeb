@@ -7,6 +7,7 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import utils.DBConnection;
 
 @WebServlet("/savemarks")
@@ -14,6 +15,14 @@ public class SaveMarksServlet extends HttpServlet {
 
     protected void doPost(HttpServletRequest req, HttpServletResponse res)
             throws IOException {
+
+        HttpSession session = req.getSession(false);
+
+        if (session == null ||
+            (session.getAttribute("admin") == null && session.getAttribute("teacher") == null)) {
+            res.sendRedirect("login.jsp");
+            return;
+        }
 
         String studentCode = req.getParameter("studentCode");
 

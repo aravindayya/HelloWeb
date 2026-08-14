@@ -1,3 +1,17 @@
+<%
+response.setHeader("Cache-Control","no-cache,no-store,must-revalidate");
+response.setHeader("Pragma","no-cache");
+response.setDateHeader("Expires",0);
+
+String user=(String)session.getAttribute("user");
+String admin=(String)session.getAttribute("admin");
+
+if(user==null || admin==null){
+    response.sendRedirect("login.jsp");
+    return;
+}
+%>
+
 <html>
 <head>
 <title>Teacher Registration</title>
@@ -115,23 +129,6 @@ select option{
     font-weight:bold;
 }
 
-.codeBtn{
-    width:100%;
-    height:52px;
-    margin-top:14px;
-    border:none;
-    border-radius:14px;
-    background:linear-gradient(135deg,#7b2ff7,#f107a3);
-    color:white;
-    font-size:17px;
-    font-weight:bold;
-    cursor:pointer;
-}
-
-.codeBtn:hover{
-    box-shadow:0 0 20px rgba(241,7,163,0.4);
-}
-
 .mainBtn{
     width:100%;
     height:58px;
@@ -148,6 +145,19 @@ select option{
 .mainBtn:hover{
     transform:translateY(-3px);
     box-shadow:0 0 25px rgba(72,255,176,0.4);
+}
+
+.backBtn{
+    display:block;
+    text-align:center;
+    margin-top:18px;
+    padding:15px;
+    text-decoration:none;
+    color:white;
+    font-size:18px;
+    font-weight:bold;
+    border-radius:14px;
+    background:linear-gradient(135deg,#36d1dc,#5b86e5);
 }
 </style>
 
@@ -260,18 +270,13 @@ function checkAdminPassword(){
     let msg=document.getElementById("adminMsg");
 
     if(pass==""){ msg.innerHTML=""; }
-    else if(pass=="1234"){
+    else if(pass=="admin123"){
         msg.innerHTML="Valid Admin Password";
         msg.style.color="lime";
     }else{
         msg.innerHTML="Wrong Admin Password";
         msg.style.color="red";
     }
-}
-
-function generateCode(){
-    let random=Math.floor(1000+Math.random()*9000);
-    document.getElementById("secretCode").value="TR-"+random;
 }
 </script>
 </head>
@@ -298,9 +303,9 @@ function generateCode(){
 <label>Semester <span class="required">*</span></label>
 <select name="semester" required>
 <option value="">Select Semester</option>
-<option>1st Sem</option><option>2nd Sem</option><option>3rd Sem</option>
-<option>4th Sem</option><option>5th Sem</option><option>6th Sem</option>
-<option>7th Sem</option><option>8th Sem</option>
+<option value="1">1</option><option value="2">2</option><option value="3">3</option>
+<option value="4">4</option><option value="5">5</option><option value="6">6</option>
+<option value="7">7</option><option value="8">8</option>
 </select>
 
 <label>Section <span class="required">*</span></label>
@@ -335,10 +340,6 @@ function generateCode(){
 <input type="password" id="adminpass" name="adminpass" onkeyup="checkAdminPassword()" required>
 <div id="adminMsg"></div>
 
-<label>Secret Code <span class="required">*</span></label>
-<input type="text" id="secretCode" name="secretCode" readonly required>
-<button type="button" class="codeBtn" onclick="generateCode()">Generate Code</button>
-
 <label>Phone Number <span class="required">*</span></label>
 <input type="text" id="phone" name="phone" maxlength="10" onkeyup="checkPhone()" required>
 <div id="phoneMsg"></div>
@@ -350,6 +351,8 @@ function generateCode(){
 <button type="submit" class="mainBtn">Register Teacher</button>
 
 </form>
+
+<a href="index.jsp" class="backBtn">Back</a>
 </div>
 </body>
 </html>

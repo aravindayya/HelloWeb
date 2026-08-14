@@ -11,6 +11,13 @@ public class DeleteServlet extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse res)
             throws IOException {
 
+        HttpSession session = req.getSession(false);
+
+        if (session == null || session.getAttribute("admin") == null) {
+            res.sendRedirect("login.jsp");
+            return;
+        }
+
         String studentCode = req.getParameter("code");
 
         try {

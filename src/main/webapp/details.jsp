@@ -1,17 +1,30 @@
 <%@ page import="java.sql.*" %>
+<%@ page import="utils.DBConnection" %>
 
 <%
-String code = request.getParameter("code");
-%>
+response.setHeader("Cache-Control","no-cache,no-store,must-revalidate");
+response.setHeader("Pragma","no-cache");
+response.setDateHeader("Expires",0);
 
-<%
-if(session.getAttribute("user") != null){
-%>
-<a class="updateBtn" href="adddetails.jsp?code=<%= code %>">
-    Update Details
-</a>
-<%
+String user=(String)session.getAttribute("user");
+
+if(user==null){
+    response.sendRedirect("login.jsp");
+    return;
 }
+
+String code = request.getParameter("code");
+
+if(code==null || code.trim().equals("")){
+    response.sendRedirect("index.jsp");
+    return;
+}
+
+boolean isAdmin = session.getAttribute("admin") != null;
+boolean isTeacher = session.getAttribute("teacher") != null;
+String myCode = (String) session.getAttribute("studentCode");
+boolean canEdit = isAdmin || isTeacher ||
+    (myCode != null && myCode.equals(code));
 %>
 
 <html>
@@ -51,9 +64,13 @@ body{
         0 0 100px rgba(255,255,255,0.08);
 }
 
+.topBar{
+    text-align:center;
+    margin-bottom:20px;
+}
+
 .updateBtn{
     display:inline-block;
-    margin:20px;
     padding:14px 22px;
     background:linear-gradient(135deg,#f7971e,#ffd200);
     color:white;
@@ -96,7 +113,7 @@ h2{
 .btn{
     display:block;
     width:180px;
-    margin:30px auto 0;
+    margin:20px auto 0;
     text-align:center;
     background:linear-gradient(135deg,#43e97b,#38f9d7);
     color:white;
@@ -119,15 +136,15 @@ h2{
 <div class="container">
 <h2>Student Details</h2>
 
+<div class="topBar">
+<% if(canEdit){ %>
+<a class="updateBtn" href="adddetails.jsp?code=<%= code %>">Add / Update Details</a>
+<% } %>
+</div>
+
 <%
 try{
-    Class.forName("com.mysql.cj.jdbc.Driver");
-
-    Connection con = DriverManager.getConnection(
-        "jdbc:mysql://localhost:3306/studentdb1",
-        "root",
-        "Aravind@1727"
-    );
+    Connection con = DBConnection.getConnection();
 
     PreparedStatement ps = con.prepareStatement(
         "SELECT * FROM student_details WHERE student_code=?"
@@ -238,8 +255,7 @@ try{
     } else {
 %>
 
-<div class="no-data">No Details Found</div>
-<a class="btn" href="adddetails.jsp?code=<%= code %>">Add Details</a>
+<div class="no-data">No Details Found - Please add details</div>
 
 <%
     }

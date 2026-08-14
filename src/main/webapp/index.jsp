@@ -21,13 +21,6 @@ String teacherDepartment=(String)session.getAttribute("teacherDepartment");
 String teacherSemester=(String)session.getAttribute("teacherSemester");
 String teacherSection=(String)session.getAttribute("teacherSection");
 
-Integer studentId=null;
-Object obj=session.getAttribute("studentId");
-
-if(obj!=null){
-    studentId=Integer.parseInt(obj.toString());
-}
-
 int totalStudents=0;
 int totalTeachers=0;
 int presentToday=0;
@@ -275,6 +268,20 @@ tr:hover{
     padding:30px;
     text-shadow:0 0 15px rgba(255,77,109,0.4);
 }
+
+.filterBox select{
+    padding:15px;
+    border-radius:12px;
+    font-size:17px;
+    width:200px;
+    color:white;
+    border:1px solid rgba(255,255,255,0.18);
+    background:rgba(255,255,255,0.08);
+}
+
+.filterBox select option{
+    color:black;
+}
 </style>
 
 <head>
@@ -292,6 +299,7 @@ function confirmLogout(){ return confirm("Logout?"); }
 <div class="topRightButtons">
 <% if(admin!=null){ %>
 <a href="teacherregister.jsp" class="teacherBtn">Teacher Register</a>
+<a href="adminAttendance.jsp" class="teacherBtn">Attendance Report</a>
 <% } %>
 <a href="logout.jsp" class="logoutBtn" onclick="return confirmLogout()">Logout</a>
 </div>
@@ -354,18 +362,21 @@ String section=request.getParameter("section");
 %>
 
 <% if(admin!=null){ %>
-<center>
+<center class="filterBox">
 <form method="get" action="index.jsp" style="margin-bottom:30px;">
 
-<select name="department" required style="padding:15px;border-radius:12px;font-size:17px;width:200px;">
+<select name="department" required style="width:200px;">
 <option value="">Department</option>
 <option value="AIML">AIML</option>
 <option value="CSE">CSE</option>
 <option value="ISE">ISE</option>
 <option value="ECE">ECE</option>
+<option value="EEE">EEE</option>
+<option value="MECH">MECH</option>
+<option value="CIVIL">CIVIL</option>
 </select>
 
-<select name="semester"  style="padding:15px;border-radius:12px;font-size:17px;width:180px;">
+<select name="semester" style="width:180px;">
 <option value="">Semester</option>
 <option>1</option>
 <option>2</option>
@@ -377,11 +388,14 @@ String section=request.getParameter("section");
 <option>8</option>
 </select>
 
-<select name="section"  style="padding:15px;border-radius:12px;font-size:17px;width:170px;">
+<select name="section" style="width:170px;">
 <option value="">Section</option>
 <option>A</option>
 <option>B</option>
 <option>C</option>
+<option>D</option>
+<option>E</option>
+<option>F</option>
 </select>
 
 <% if(search!=null && !search.trim().equals("")){ %>
@@ -396,6 +410,7 @@ String section=request.getParameter("section");
 <table border="1">
 <tr>
 <th>ID</th>
+<th>Student Code</th>
 <th>Student Name</th>
 <th>Details</th>
 <th>Marks</th>
@@ -409,42 +424,54 @@ boolean hasData=false;
 
 try{
 Connection con=DBConnection.getConnection();
-PreparedStatement ps = null;
+
+StringBuilder sql=new StringBuilder();
 
 if(admin!=null){
-	if(search!=null && !search.trim().equals("")){
-	    ps=con.prepareStatement(
-	        "SELECT s.* FROM students s " +
-	        "JOIN student_details d ON s.student_code=d.student_code " +
-	        "WHERE d.department=? AND d.semester=? AND d.section=? " +
-	        "AND (s.fullname LIKE ? OR s.student_code LIKE ?)"
-	    );
-	    ps.setString(1,department);
-	    ps.setString(2,semester);
-	    ps.setString(3,section);
-	    ps.setString(4,"%"+search+"%");
-	    ps.setString(5,"%"+search+"%");
-	}
-	else if(department!=null && semester!=null && section!=null){
-	    ps=con.prepareStatement(
-	        "SELECT s.* FROM students s " +
-	        "JOIN student_details d ON s.student_code=d.student_code " +
-	        "WHERE d.department=? AND d.semester=? AND d.section=?"
-	    );
-	    ps.setString(1,department);
-	    ps.setString(2,semester);
-	    ps.setString(3,section);
-	}
-	else{
-	    ps=con.prepareStatement("SELECT * FROM students WHERE 1=0");
-	}
-} 
-// Fallback query configuration for Teachers or Students roles if applicable
-else {
-    ps=con.prepareStatement("SELECT * FROM students WHERE 1=0");
-}
+    sql.append("SELECT s.* FROM students s ");
 
-if(ps != null) {
+    boolean filtered=false;
+
+    if(search!=null && !search.trim().equals("")){
+        sql.append("JOIN student_details d ON s.student_code=d.student_code WHERE 1=1 ");
+        filtered=true;
+
+        if(department!=null && !department.equals("") && semester!=null && !semester.equals("") && section!=null && !section.equals("")){
+            sql.append("AND d.department=? AND d.semester=? AND d.section=? ");
+        }
+
+        sql.append("AND (s.fullname LIKE ? OR s.student_code LIKE ? OR s.email LIKE ?) ");
+    }
+    else if(department!=null && !department.equals("") && semester!=null && !semester.equals("") && section!=null && !section.equals("")){
+        sql.append("JOIN student_details d ON s.student_code=d.student_code ");
+        sql.append("WHERE d.department=? AND d.semester=? AND d.section=? ");
+        filtered=true;
+    }
+
+    if(!filtered){
+        sql.append("WHERE 1=1 ");
+    }
+
+    PreparedStatement ps=con.prepareStatement(sql.toString());
+
+    int i=1;
+
+    if(search!=null && !search.trim().equals("")){
+        if(department!=null && !department.equals("") && semester!=null && !semester.equals("") && section!=null && !section.equals("")){
+            ps.setString(i++,department);
+            ps.setString(i++,semester);
+            ps.setString(i++,section);
+        }
+        ps.setString(i++,"%"+search+"%");
+        ps.setString(i++,"%"+search+"%");
+        ps.setString(i++,"%"+search+"%");
+    }
+    else if(department!=null && !department.equals("") && semester!=null && !semester.equals("") && section!=null && !section.equals("")){
+        ps.setString(i++,department);
+        ps.setString(i++,semester);
+        ps.setString(i++,section);
+    }
+
     ResultSet rs=ps.executeQuery();
 
     while(rs.next()){
@@ -454,25 +481,21 @@ if(ps != null) {
     %>
     <tr>
     <td><%= id %></td>
+    <td><%= studentCode %></td>
     <td><%= rs.getString("fullname") %></td>
-    
+
     <td>
     <a class="detailsBtn" href="details.jsp?code=<%= studentCode %>">Details</a>
     </td>
-    
+
     <td>
-    <% if(admin!=null || teacher!=null){ %>
-    <a class="marksBtn" href="addmarks.jsp?code=<%= studentCode %>">Marks</a>
-    <% } else { %>
     <a class="marksBtn" href="marks.jsp?code=<%= studentCode %>">Marks</a>
-    <% } %>
     </td>
-    
+
     <td>
     <a class="reportBtn" href="attendanceReport.jsp?code=<%= studentCode %>">Report</a>
     </td>
-    
-    <% if(admin!=null || teacher!=null){ %>
+
     <td>
     <% if(teacher!=null){ %>
     <a class="attBtn" href="attendance.jsp?code=<%= studentCode %>">Attendance</a>
@@ -480,26 +503,110 @@ if(ps != null) {
     <a class="updateBtn" href="adddetails.jsp?code=<%= studentCode %>">Update</a>
     <% } %>
     </td>
-    <% } %>
-    
-    <% if(admin!=null){ %>
+
     <td>
     <a class="deleteBtn" href="delete?code=<%= studentCode %>" onclick="return confirmDelete()">Delete</a>
     </td>
-    <% } %>
     </tr>
-    <% 
-    } 
+    <%
+    }
+    rs.close();
+    ps.close();
+}
+else if(teacher!=null){
+
+    PreparedStatement ps=con.prepareStatement(
+        "SELECT s.* FROM students s " +
+        "JOIN student_details d ON s.student_code=d.student_code " +
+        "WHERE d.department=? AND d.semester=? AND d.section=?"
+    );
+
+    ps.setString(1, teacherDepartment);
+    ps.setString(2, teacherSemester);
+    ps.setString(3, teacherSection);
+
+    ResultSet rs=ps.executeQuery();
+
+    while(rs.next()){
+    hasData=true;
+    int id=rs.getInt("id");
+    String studentCode=rs.getString("student_code");
+    %>
+    <tr>
+    <td><%= id %></td>
+    <td><%= studentCode %></td>
+    <td><%= rs.getString("fullname") %></td>
+
+    <td>
+    <a class="detailsBtn" href="details.jsp?code=<%= studentCode %>">Details</a>
+    </td>
+
+    <td>
+    <a class="marksBtn" href="marks.jsp?code=<%= studentCode %>">Marks</a>
+    </td>
+
+    <td>
+    <a class="reportBtn" href="attendanceReport.jsp?code=<%= studentCode %>">Report</a>
+    </td>
+
+    <td>
+    <a class="attBtn" href="attendance.jsp?code=<%= studentCode %>">Attendance</a>
+    </td>
+    </tr>
+    <%
+    }
+    rs.close();
+    ps.close();
+}
+else{
+
+    String studentCode=(String)session.getAttribute("studentCode");
+
+    PreparedStatement ps=con.prepareStatement(
+        "SELECT * FROM students WHERE student_code=?"
+    );
+
+    ps.setString(1, studentCode);
+
+    ResultSet rs=ps.executeQuery();
+
+    while(rs.next()){
+    hasData=true;
+    int id=rs.getInt("id");
+    String code=rs.getString("student_code");
+    %>
+    <tr>
+    <td><%= id %></td>
+    <td><%= code %></td>
+    <td><%= rs.getString("fullname") %></td>
+
+    <td>
+    <a class="detailsBtn" href="details.jsp?code=<%= code %>">Details</a>
+    </td>
+
+    <td>
+    <a class="marksBtn" href="marks.jsp?code=<%= code %>">Marks</a>
+    </td>
+
+    <td>
+    <a class="reportBtn" href="attendanceReport.jsp?code=<%= code %>">Report</a>
+    </td>
+    </tr>
+    <%
+    }
+    rs.close();
+    ps.close();
+}
+
+con.close();
+}catch(Exception e){
+out.println(e);
 }
 
 if(!hasData){
 %>
-<tr><td colspan="7" class="noData">No student data found</td></tr>
+<tr><td colspan="<%= (admin!=null ? 8 : (teacher!=null ? 7 : 6)) %>" class="noData">No student data found</td></tr>
 <%
-}
-con.close();
-}catch(Exception e){
-out.println(e);
 }
 %>
 </table>

@@ -1,7 +1,14 @@
-import java.io.*;
-import java.sql.*;
-import jakarta.servlet.http.*;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+
 import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import utils.DBConnection;
 
 @WebServlet("/login")
@@ -25,64 +32,66 @@ public class LoginServlet extends HttpServlet {
         try {
             Connection con = DBConnection.getConnection();
 
-            if (type.equals("admin")) {
-
-                if (username.equals("aruaru") && password.equals("Aru@172737")) {
-
-                    session.setAttribute("admin", username);
-                    session.setAttribute("user", username);
-
-                    res.sendRedirect("index.jsp");
-
-                } else {
-                    out.println("<script>");
-                    out.println("alert('Wrong Admin Login');");
-                    out.println("window.location='login.jsp';");
-                    out.println("</script>");
-                }
+            if (con == null) {
+                showAlert(res, out, "Database Connection Failed", "login.jsp");
+                return;
             }
 
-            else if (type.equals("teacher")) {
+            if (type.equals("admin")) {
 
                 PreparedStatement ps = con.prepareStatement(
-                        "SELECT * FROM teachers WHERE username=? AND password=?");
-
+                        "SELECT * FROM users WHERE username=? AND password=?");
                 ps.setString(1, username);
                 ps.setString(2, password);
 
                 ResultSet rs = ps.executeQuery();
 
                 if (rs.next()) {
+                    session.setAttribute("admin", username);
+                    session.setAttribute("user", username);
+                    session.setAttribute("adminName", rs.getString("name"));
+                    res.sendRedirect("index.jsp");
+                } else {
+                    showAlert(res, out, "Wrong Admin Login", "login.jsp");
+                }
 
+                rs.close();
+                ps.close();
+
+            } else if (type.equals("teacher")) {
+
+                PreparedStatement ps = con.prepareStatement(
+                        "SELECT * FROM teachers WHERE username=? AND password=?");
+                ps.setString(1, username);
+                ps.setString(2, password);
+
+                ResultSet rs = ps.executeQuery();
+
+                if (rs.next()) {
                     session.setAttribute("teacher", username);
                     session.setAttribute("teacherName", rs.getString("fullname"));
                     session.setAttribute("teacherDepartment", rs.getString("department"));
                     session.setAttribute("teacherSemester", rs.getString("semester"));
                     session.setAttribute("teacherSection", rs.getString("section"));
                     session.setAttribute("user", username);
-
                     res.sendRedirect("attendance.jsp");
-
                 } else {
-                    out.println("<script>");
-                    out.println("alert('Wrong Teacher Login');");
-                    out.println("window.location='login.jsp';");
-                    out.println("</script>");
+                    showAlert(res, out, "Wrong Teacher Login", "login.jsp");
                 }
-            }
 
-            else {
+                rs.close();
+                ps.close();
+
+            } else {
 
                 PreparedStatement ps = con.prepareStatement(
                         "SELECT * FROM students WHERE username=? AND password=?");
-
                 ps.setString(1, username);
                 ps.setString(2, password);
 
                 ResultSet rs = ps.executeQuery();
 
                 if (rs.next()) {
-
                     session.removeAttribute("admin");
                     session.removeAttribute("teacher");
 
@@ -92,24 +101,28 @@ public class LoginServlet extends HttpServlet {
                     session.setAttribute("name", rs.getString("fullname"));
 
                     res.sendRedirect("index.jsp");
-
                 } else {
-                    out.println("<script>");
-                    out.println("alert('Wrong Username or Password');");
-                    out.println("window.location='login.jsp';");
-                    out.println("</script>");
+                    showAlert(res, out, "Wrong Username or Password", "login.jsp");
                 }
+
+                rs.close();
+                ps.close();
             }
 
             con.close();
 
         } catch (Exception e) {
             e.printStackTrace();
-
-            out.println("<script>");
-            out.println("alert('Database Error');");
-            out.println("window.location='login.jsp';");
-            out.println("</script>");
+            showAlert(res, out, "Database Error", "login.jsp");
         }
+    }
+
+    private void showAlert(HttpServletResponse res, PrintWriter out,
+                           String message, String page) throws IOException {
+        res.setContentType("text/html");
+        out.println("<script>");
+        out.println("alert('" + message.replace("'", "") + "');");
+        out.println("window.location='" + page + "';");
+        out.println("</script>");
     }
 }

@@ -1,8 +1,15 @@
-import java.io.*;
-import java.sql.*;
-import jakarta.servlet.*;
-import jakarta.servlet.http.*;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+
 import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import utils.DBConnection;
 
 @WebServlet("/sendotp")
 public class SendOtpServlet extends HttpServlet {
@@ -15,21 +22,20 @@ public class SendOtpServlet extends HttpServlet {
 
         PrintWriter out = res.getWriter();
 
-        try{
+        try {
             Connection con = DBConnection.getConnection();
 
             PreparedStatement ps = con.prepareStatement(
-                "SELECT * FROM users WHERE username=? AND phone=?"
-            );
+                "SELECT * FROM students WHERE username=? AND phone=?");
 
             ps.setString(1, username);
             ps.setString(2, phone);
 
             ResultSet rs = ps.executeQuery();
 
-            if(rs.next()){
+            if (rs.next()) {
 
-                int otp = 100000 + (int)(Math.random()*900000);
+                int otp = 100000 + (int) (Math.random() * 900000);
 
                 HttpSession session = req.getSession();
                 session.setAttribute("otp", otp);
@@ -41,7 +47,6 @@ public class SendOtpServlet extends HttpServlet {
                 out.println("</script>");
 
             } else {
-
                 out.println("<html>");
                 out.println("<head><title>User Not Found</title>");
                 out.println("<style>");
@@ -63,9 +68,11 @@ public class SendOtpServlet extends HttpServlet {
                 out.println("</body></html>");
             }
 
+            rs.close();
+            ps.close();
             con.close();
 
-        } catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

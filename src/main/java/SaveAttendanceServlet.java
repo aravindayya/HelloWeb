@@ -1,8 +1,9 @@
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.List;
 
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -17,123 +18,140 @@ public class SaveAttendanceServlet extends HttpServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse res)
             throws IOException {
 
+        HttpSession session = req.getSession(false);
+
+        if (session == null ||
+            (session.getAttribute("teacher") == null && session.getAttribute("admin") == null)) {
+            res.sendRedirect("login.jsp");
+            return;
+        }
+
         String semester = req.getParameter("semester");
         String section = req.getParameter("section");
         String department = req.getParameter("department");
         String date = req.getParameter("date");
 
-        HttpSession session = req.getSession();
-        String teacher = (String) session.getAttribute("teacher");
+        if (date == null || date.trim().equals("")) {
+            res.sendRedirect("attendance.jsp");
+            return;
+        }
+
+        String markedBy = (String) session.getAttribute("teacherName");
+        if (markedBy == null) {
+            markedBy = (String) session.getAttribute("adminName");
+        }
+        if (markedBy == null) {
+            markedBy = (String) session.getAttribute("teacher");
+        }
+        if (markedBy == null) {
+            markedBy = (String) session.getAttribute("admin");
+        }
+
+        List<String[]> rows = new ArrayList<>();
+
+        Enumeration<String> params = req.getParameterNames();
+
+        while (params.hasMoreElements()) {
+
+            String name = params.nextElement();
+
+            if (name.startsWith("status_")) {
+
+                String studentCode = name.substring(7);
+                String status = req.getParameter(name);
+
+                if (status != null) {
+                    rows.add(new String[]{studentCode, status});
+                }
+            }
+        }
+
+        Connection con = null;
 
         try {
 
-            Connection con = DBConnection.getConnection();
+            con = DBConnection.getConnection();
+            con.setAutoCommit(false);
 
-            PreparedStatement psStudents = con.prepareStatement(
-                "SELECT id,student_code FROM student_details WHERE semester=? AND section=? AND department=?"
-            );
+            boolean classFiltered = (semester != null && section != null && department != null);
 
-            psStudents.setString(1, semester);
-            psStudents.setString(2, section);
-            psStudents.setString(3, department);
+            PreparedStatement delete;
 
-            ResultSet rs = psStudents.executeQuery();
+            if (classFiltered) {
 
-            while(rs.next()){
+                delete = con.prepareStatement(
+                    "DELETE FROM attendance WHERE att_date=? AND semester=? AND section=? AND department=?");
+                delete.setString(1, date);
+                delete.setString(2, semester);
+                delete.setString(3, section);
+                delete.setString(4, department);
 
-                int id = rs.getInt("id");
-                String studentCode = rs.getString("student_code");
+            } else {
 
-                String status = req.getParameter("status_" + studentCode);
-
-                if(status==null){
-                    continue;
-                }
-
-                PreparedStatement check = con.prepareStatement(
-                    "SELECT attendance_id FROM attendance WHERE student_code=? AND att_date=?"
-                );
-
-                check.setString(1, studentCode);
-                check.setString(2, date);
-
-                ResultSet existing = check.executeQuery();
-
-                if(existing.next()){
-
-                    PreparedStatement update = con.prepareStatement(
-                        "UPDATE attendance SET status=?,marked_by=?,semester=?,section=?,department=? WHERE student_code=? AND att_date=?"
-                    );
-
-                    update.setString(1, status);
-                    update.setString(2, teacher);
-                    update.setString(3, semester);
-                    update.setString(4, section);
-                    update.setString(5, department);
-                    update.setString(6, studentCode);
-                    update.setString(7, date);
-
-                    update.executeUpdate();
-                    update.close();
-
-                }else{
-
-                    PreparedStatement insert = con.prepareStatement(
-                        "INSERT INTO attendance(student_id,student_code,att_date,status,marked_by,semester,section,department) VALUES(?,?,?,?,?,?,?,?)"
-                    );
-
-                    insert.setInt(1, id);
-                    insert.setString(2, studentCode);
-                    insert.setString(3, date);
-                    insert.setString(4, status);
-                    insert.setString(5, teacher);
-                    insert.setString(6, semester);
-                    insert.setString(7, section);
-                    insert.setString(8, department);
-
-                    insert.executeUpdate();
-                    insert.close();
-                }
-
-                existing.close();
-                check.close();
+                delete = con.prepareStatement(
+                    "DELETE FROM attendance WHERE att_date=? AND student_code=?");
+                delete.setString(1, date);
             }
 
-            rs.close();
-            psStudents.close();
-            con.close();
+            PreparedStatement insert = con.prepareStatement(
+                "INSERT INTO attendance(student_code,att_date,status,marked_by,semester,section,department) VALUES(?,?,?,?,?,?,?)");
 
-            res.setContentType("text/html");
+            for (String[] row : rows) {
 
-            PrintWriter out = res.getWriter();
+                if (classFiltered) {
 
-            out.println("<html>");
-            out.println("<head>");
-            out.println("<script>");
-            out.println("alert('Attendance Saved Successfully!');");
-            out.println("window.location='attendance.jsp';");
-            out.println("</script>");
-            out.println("</head>");
-            out.println("<body></body>");
-            out.println("</html>");
+                    delete.setString(1, date);
+                    delete.setString(2, semester);
+                    delete.setString(3, section);
+                    delete.setString(4, department);
 
-        }catch(Exception e){
+                } else {
+
+                    delete.setString(2, row[0]);
+                }
+
+                delete.executeUpdate();
+
+                insert.setString(1, row[0]);
+                insert.setString(2, date);
+                insert.setString(3, row[1]);
+                insert.setString(4, markedBy);
+                insert.setString(5, semester);
+                insert.setString(6, section);
+                insert.setString(7, department);
+
+                insert.executeUpdate();
+            }
+
+            delete.close();
+            insert.close();
+
+            con.commit();
+
+            res.sendRedirect("attendance.jsp?date=" + date + "&msg=Attendance+Saved");
+
+        } catch (Exception e) {
 
             e.printStackTrace();
 
-            res.setContentType("text/html");
+            if (con != null) {
+                try {
+                    con.rollback();
+                } catch (Exception ex) {
+                }
+            }
 
-            PrintWriter out = res.getWriter();
+            res.sendRedirect("attendance.jsp?date=" + date + "&msg=" + e.getMessage());
 
-            out.println("<html>");
-            out.println("<head>");
-            out.println("<script>");
-            out.println("alert('"+e.getMessage().replace("'","")+"');");
-            out.println("history.back();");
-            out.println("</script>");
-            out.println("</head>");
-            out.println("<body></body>");
-            out.println("</html>");
+        } finally {
+
+            if (con != null) {
+                try {
+                    con.setAutoCommit(true);
+                    con.close();
+                } catch (Exception e) {
+                }
+            }
         }
     }
 }

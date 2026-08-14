@@ -2,7 +2,32 @@
 <%@ page import="utils.DBConnection" %>
 
 <%
+response.setHeader("Cache-Control","no-cache,no-store,must-revalidate");
+response.setHeader("Pragma","no-cache");
+response.setDateHeader("Expires",0);
+
+String user=(String)session.getAttribute("user");
+
+if(user==null){
+    response.sendRedirect("login.jsp");
+    return;
+}
+
 String code = request.getParameter("code");
+
+boolean isAdmin = session.getAttribute("admin") != null;
+boolean isTeacher = session.getAttribute("teacher") != null;
+String myCode = (String) session.getAttribute("studentCode");
+
+if(code==null || code.trim().equals("")){
+    response.sendRedirect("index.jsp");
+    return;
+}
+
+if(!isAdmin && !isTeacher && (myCode==null || !myCode.equals(code))){
+    response.sendRedirect("index.jsp");
+    return;
+}
 
 String reg="", name="", college="", department="", semester="";
 String section="", dob="", blood="", gender="";
@@ -41,6 +66,8 @@ try{
         parentBlood = rs.getString("parent_blood_group");
     }
 
+    rs.close();
+    ps.close();
     con.close();
 }catch(Exception e){
     out.println(e);
@@ -199,35 +226,35 @@ function checkPhone(){
 
 <label>Department *</label>
 <select name="department" required>
-<option>AIML</option>
-<option>CSE</option>
-<option>ISE</option>
-<option>ECE</option>
-<option>EEE</option>
-<option>MECH</option>
-<option>CIVIL</option>
+<option value="AIML" <%= department.equals("AIML")?"selected":"" %>>AIML</option>
+<option value="CSE"  <%= department.equals("CSE")?"selected":"" %>>CSE</option>
+<option value="ISE"  <%= department.equals("ISE")?"selected":"" %>>ISE</option>
+<option value="ECE"  <%= department.equals("ECE")?"selected":"" %>>ECE</option>
+<option value="EEE"  <%= department.equals("EEE")?"selected":"" %>>EEE</option>
+<option value="MECH" <%= department.equals("MECH")?"selected":"" %>>MECH</option>
+<option value="CIVIL"<%= department.equals("CIVIL")?"selected":"" %>>CIVIL</option>
 </select>
 
 <label>Semester</label>
 <select name="semester">
-<option>1st Sem</option>
-<option>2nd Sem</option>
-<option>3rd Sem</option>
-<option>4th Sem</option>
-<option>5th Sem</option>
-<option>6th Sem</option>
-<option>7th Sem</option>
-<option>8th Sem</option>
+<option value="1" <%= semester.equals("1")?"selected":"" %>>1</option>
+<option value="2" <%= semester.equals("2")?"selected":"" %>>2</option>
+<option value="3" <%= semester.equals("3")?"selected":"" %>>3</option>
+<option value="4" <%= semester.equals("4")?"selected":"" %>>4</option>
+<option value="5" <%= semester.equals("5")?"selected":"" %>>5</option>
+<option value="6" <%= semester.equals("6")?"selected":"" %>>6</option>
+<option value="7" <%= semester.equals("7")?"selected":"" %>>7</option>
+<option value="8" <%= semester.equals("8")?"selected":"" %>>8</option>
 </select>
 
 <label>Section</label>
 <select name="section">
-<option>A</option>
-<option>B</option>
-<option>C</option>
-<option>D</option>
-<option>E</option>
-<option>F</option>
+<option value="A" <%= section.equals("A")?"selected":"" %>>A</option>
+<option value="B" <%= section.equals("B")?"selected":"" %>>B</option>
+<option value="C" <%= section.equals("C")?"selected":"" %>>C</option>
+<option value="D" <%= section.equals("D")?"selected":"" %>>D</option>
+<option value="E" <%= section.equals("E")?"selected":"" %>>E</option>
+<option value="F" <%= section.equals("F")?"selected":"" %>>F</option>
 </select>
 
 <label>DOB</label>
@@ -235,21 +262,21 @@ function checkPhone(){
 
 <label>Blood Group</label>
 <select name="blood">
-<option>A+</option>
-<option>A-</option>
-<option>B+</option>
-<option>B-</option>
-<option>AB+</option>
-<option>AB-</option>
-<option>O+</option>
-<option>O-</option>
+<option <%= blood.equals("A+")?"selected":"" %>>A+</option>
+<option <%= blood.equals("A-")?"selected":"" %>>A-</option>
+<option <%= blood.equals("B+")?"selected":"" %>>B+</option>
+<option <%= blood.equals("B-")?"selected":"" %>>B-</option>
+<option <%= blood.equals("AB+")?"selected":"" %>>AB+</option>
+<option <%= blood.equals("AB-")?"selected":"" %>>AB-</option>
+<option <%= blood.equals("O+")?"selected":"" %>>O+</option>
+<option <%= blood.equals("O-")?"selected":"" %>>O-</option>
 </select>
 
 <label>Gender</label>
 <select name="gender">
-<option>Male</option>
-<option>Female</option>
-<option>Other</option>
+<option <%= gender.equals("Male")?"selected":"" %>>Male</option>
+<option <%= gender.equals("Female")?"selected":"" %>>Female</option>
+<option <%= gender.equals("Other")?"selected":"" %>>Other</option>
 </select>
 
 <label>Mobile</label>
@@ -265,14 +292,14 @@ function checkPhone(){
 
 <label>Category</label>
 <select name="category">
-<option>GM</option>
-<option>SC</option>
-<option>ST</option>
-<option>OBC</option>
-<option>2A</option>
-<option>2B</option>
-<option>3A</option>
-<option>3B</option>
+<option <%= category.equals("GM")?"selected":"" %>>GM</option>
+<option <%= category.equals("SC")?"selected":"" %>>SC</option>
+<option <%= category.equals("ST")?"selected":"" %>>ST</option>
+<option <%= category.equals("OBC")?"selected":"" %>>OBC</option>
+<option <%= category.equals("2A")?"selected":"" %>>2A</option>
+<option <%= category.equals("2B")?"selected":"" %>>2B</option>
+<option <%= category.equals("3A")?"selected":"" %>>3A</option>
+<option <%= category.equals("3B")?"selected":"" %>>3B</option>
 </select>
 
 <label>Nationality</label>
@@ -297,14 +324,14 @@ function checkPhone(){
 
 <label>Parent Blood Group</label>
 <select name="parentBlood">
-<option>A+</option>
-<option>A-</option>
-<option>B+</option>
-<option>B-</option>
-<option>AB+</option>
-<option>AB-</option>
-<option>O+</option>
-<option>O-</option>
+<option <%= parentBlood.equals("A+")?"selected":"" %>>A+</option>
+<option <%= parentBlood.equals("A-")?"selected":"" %>>A-</option>
+<option <%= parentBlood.equals("B+")?"selected":"" %>>B+</option>
+<option <%= parentBlood.equals("B-")?"selected":"" %>>B-</option>
+<option <%= parentBlood.equals("AB+")?"selected":"" %>>AB+</option>
+<option <%= parentBlood.equals("AB-")?"selected":"" %>>AB-</option>
+<option <%= parentBlood.equals("O+")?"selected":"" %>>O+</option>
+<option <%= parentBlood.equals("O-")?"selected":"" %>>O-</option>
 </select>
 
 <button type="submit" class="mainBtn">Save Details</button>

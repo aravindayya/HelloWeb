@@ -1,5 +1,7 @@
 import java.io.*;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import jakarta.servlet.annotation.WebServlet;
@@ -12,6 +14,10 @@ public class RegisterServlet extends HttpServlet {
         return "STU" + (100000 + (int)(Math.random() * 900000));
     }
 
+    private boolean isValidPhone(String phone) {
+        return phone != null && phone.matches("[6-9][0-9]{9}");
+    }
+
     protected void doPost(HttpServletRequest req, HttpServletResponse res)
             throws IOException {
 
@@ -19,7 +25,7 @@ public class RegisterServlet extends HttpServlet {
         String username = req.getParameter("username");
         String password = req.getParameter("password");
         String confirm = req.getParameter("confirm");
-        String phone = req.getParameter("phone");
+        String primaryPhone = req.getParameter("phone");
         String email = req.getParameter("email");
 
         PrintWriter out = res.getWriter();
@@ -32,8 +38,43 @@ public class RegisterServlet extends HttpServlet {
             return;
         }
 
+        List<String> phones = new ArrayList<>();
+        if(primaryPhone != null && !primaryPhone.trim().isEmpty()){
+            phones.add(primaryPhone.trim());
+        }
+        String[] altPhones = req.getParameterValues("altphone");
+        if(altPhones != null){
+            for(String p : altPhones){
+                if(p != null && !p.trim().isEmpty() && !phones.contains(p.trim())){
+                    phones.add(p.trim());
+                }
+            }
+        }
+
+        if(phones.isEmpty()){
+            out.println("<script>");
+            out.println("alert('At least one phone number is required');");
+            out.println("window.location='register.jsp';");
+            out.println("</script>");
+            return;
+        }
+
+        for(String p : phones){
+            if(!isValidPhone(p)){
+                out.println("<script>");
+                out.println("alert('Invalid phone number: " + p + "');");
+                out.println("window.location='register.jsp';");
+                out.println("</script>");
+                return;
+            }
+        }
+
+        Connection con = null;
+        PreparedStatement ps = null;
+
         try{
-            Connection con = DBConnection.getConnection();
+            con = DBConnection.getConnection();
+            con.setAutoCommit(false);
 
             PreparedStatement checkUser = con.prepareStatement(
                 "SELECT * FROM students WHERE username=?"
@@ -49,18 +90,25 @@ public class RegisterServlet extends HttpServlet {
                 return;
             }
 
-            PreparedStatement checkPhone = con.prepareStatement(
+            PreparedStatement checkPhoneInStudents = con.prepareStatement(
                 "SELECT * FROM students WHERE phone=?"
             );
-            checkPhone.setString(1, phone);
-            ResultSet rs2 = checkPhone.executeQuery();
+            PreparedStatement checkPhoneInExtras = con.prepareStatement(
+                "SELECT * FROM student_phones WHERE phone=?"
+            );
 
-            if(rs2.next()){
-                out.println("<script>");
-                out.println("alert('Phone number already registered');");
-                out.println("window.location='register.jsp';");
-                out.println("</script>");
-                return;
+            for(String p : phones){
+                checkPhoneInStudents.setString(1, p);
+                ResultSet rsS = checkPhoneInStudents.executeQuery();
+                checkPhoneInExtras.setString(1, p);
+                ResultSet rsE = checkPhoneInExtras.executeQuery();
+                if(rsS.next() || rsE.next()){
+                    out.println("<script>");
+                    out.println("alert('Phone number " + p + " already registered');");
+                    out.println("window.location='register.jsp';");
+                    out.println("</script>");
+                    return;
+                }
             }
 
             PreparedStatement checkEmail = con.prepareStatement(
@@ -90,40 +138,59 @@ public class RegisterServlet extends HttpServlet {
                 rs4 = checkCode.executeQuery();
             } while(rs4.next());
 
-            PreparedStatement ps = con.prepareStatement(
+            ps = con.prepareStatement(
                 "INSERT INTO students(fullname,username,password,phone,email,student_code) VALUES(?,?,?,?,?,?)"
             );
 
             ps.setString(1, name);
             ps.setString(2, username);
             ps.setString(3, password);
-            ps.setString(4, phone);
+            ps.setString(4, phones.get(0));
             ps.setString(5, email);
             ps.setString(6, studentCode);
 
             int rows = ps.executeUpdate();
 
             if(rows > 0){
+                PreparedStatement phonePs = con.prepareStatement(
+                    "INSERT INTO student_phones(student_code,phone) VALUES(?,?)"
+                );
+                for(String p : phones){
+                    phonePs.setString(1, studentCode);
+                    phonePs.setString(2, p);
+                    phonePs.executeUpdate();
+                }
+                con.commit();
+
                 out.println("<script>");
                 out.println("alert('Registration Successful! Student Code: " + studentCode + "');");
                 out.println("window.location='login.jsp';");
                 out.println("</script>");
             }else{
+                con.rollback();
                 out.println("<script>");
                 out.println("alert('Registration Failed');");
                 out.println("window.location='register.jsp';");
                 out.println("</script>");
             }
 
-            con.close();
-
         }catch(Exception e){
             e.printStackTrace();
-
+            if(con != null){
+                try{ con.rollback(); }catch(Exception r){}
+            }
             out.println("<script>");
             out.println("alert('Database Error');");
             out.println("window.location='register.jsp';");
             out.println("</script>");
+        }finally{
+            try{
+                if(ps != null) ps.close();
+                if(con != null){
+                    con.setAutoCommit(true);
+                    con.close();
+                }
+            }catch(Exception e){}
         }
     }
 }
